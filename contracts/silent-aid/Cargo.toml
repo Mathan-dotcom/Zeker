@@ -1,0 +1,19 @@
+[package]
+name = "silent-aid"
+version = "0.1.0"
+authors = ["Team Zeker"]
+edition = "2021"
+publish = false
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+soroban-sdk = "21.0.1"
+
+[profile.release]
+opt-level = "z"
+overflow-checks = true
+lto = true
+codegen-units = 1
+panic = "abort"

@@ -1,0 +1,7 @@
+[package]
+name = "silent_aid_circuit"
+type = "bin"
+authors = ["Team Zeker"]
+compiler_version = ">=0.32.0"
+
+[dependencies]
