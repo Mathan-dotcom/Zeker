@@ -97,7 +97,7 @@ export function SimulationDashboard() {
   
   // Network Mode states
   const [networkMode, setNetworkMode] = useState<"sandbox" | "testnet">("sandbox")
-  const [testnetContractId, setTestnetContractId] = useState(process.env.NEXT_PUBLIC_STELLAR_CONTRACT_ID || "CBCCC644N6BW4VMZIZKESJ2QHUYL2VSQBO7TG2MDMT4PAJPLPCQYKOFP")
+  const [testnetContractId, setTestnetContractId] = useState(process.env.NEXT_PUBLIC_STELLAR_CONTRACT_ID || "CCQ7EOD4POLCSNKLLJXE6ZLMPS4NH3FCS63M3VAOLJHDUHE3ISUFDCV2")
   const [transactionLink, setTransactionLink] = useState("")
 
   // Auto scroll console (restrained to container viewport)
@@ -175,21 +175,18 @@ export function SimulationDashboard() {
         // Step 1: Detect wallet
         setClaimingState("deriving_hash");
         appendLog("[client-zk] checking Freighter wallet installation...");
-        const connection = await Freighter.isConnected();
-        const isInstalled = typeof connection === "boolean" ? connection : connection?.isConnected;
-        if (!isInstalled) {
-          throw new Error("Freighter browser extension not detected. Please install Freighter to claim via Testnet.");
+        const isFreighterConnected = await Freighter.isConnected();
+        if (!isFreighterConnected) {
+          throw new Error("Freighter wallet extension not detected in browser. Please install the Freighter extension.");
         }
         
         // Step 2: Fetch public key
         setClaimingState("retrieving_merkle_proof");
         appendLog("[client-zk] requesting Freighter public account address...");
-        const accessResult = await Freighter.requestAccess();
-        const address = accessResult?.address;
-        if (!address) {
-          throw new Error("User public key not available. Please unlock your Freighter browser extension and grant access.");
+        const userPublicKey = await Freighter.getPublicKey();
+        if (!userPublicKey) {
+          throw new Error("Could not retrieve public key. Please unlock your Freighter wallet.");
         }
-        const userPublicKey = address;
         appendLog(`[client-zk] connected to Freighter: ${userPublicKey.slice(0, 8)}...${userPublicKey.slice(-8)}`);
         
         // Step 3: Check Nullifier
