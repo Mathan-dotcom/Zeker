@@ -191,17 +191,6 @@ export function SimulationDashboard() {
         const userPublicKey = accessResult.address;
         appendLog(`[client-zk] connected to Freighter: ${userPublicKey.slice(0, 8)}...${userPublicKey.slice(-8)}`);
         
-        // Auto-add USDC token trustline to Freighter
-        try {
-          appendLog("[client-zk] requesting Freighter to register USDC trustline...");
-          await Freighter.addToken({
-            contractId: "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
-            networkPassphrase: "Test SDF Network ; September 2015"
-          });
-        } catch (tokenErr) {
-          console.warn("Add token request ignored or failed:", tokenErr);
-        }
-        
         // Step 3: Check Nullifier
         setClaimingState("generating_nullifier");
         appendLog("[client-zk] calculating nullifier hash...");
