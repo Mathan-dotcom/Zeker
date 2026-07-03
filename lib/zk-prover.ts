@@ -37,7 +37,7 @@ export async function generateZKProof(
     .toString();
 
   // Modulus of BN254 prime field
-  const BN254_MODULUS = 21888242871839275222246405745257275088548364400416034343698204186575808495617n;
+  const BN254_MODULUS = 2188824287183927522224640575257275088548364400416034343698204186575808495617n;
   const secretBigInt = BigInt(secretField);
 
   // Derive nullifier: (secret * 2026) % Modulus

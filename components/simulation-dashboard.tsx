@@ -176,18 +176,19 @@ export function SimulationDashboard() {
         setClaimingState("deriving_hash");
         appendLog("[client-zk] checking Freighter wallet installation...");
         const connection = await Freighter.isConnected();
-        if (!connection || !connection.isConnected) {
+        const isInstalled = typeof connection === "boolean" ? connection : (connection && connection.isConnected);
+        if (!isInstalled) {
           throw new Error("Freighter wallet extension not detected in browser. Please install the Freighter extension.");
         }
         
         // Step 2: Fetch public key
         setClaimingState("retrieving_merkle_proof");
         appendLog("[client-zk] requesting Freighter public account address...");
-        const addressObj = await Freighter.getAddress();
-        if (!addressObj || !addressObj.address) {
-          throw new Error("Could not retrieve public key. Please unlock your Freighter wallet.");
+        const accessResult = await Freighter.requestAccess();
+        if (!accessResult || !accessResult.address) {
+          throw new Error("Could not retrieve public key. Please unlock your Freighter wallet and allow access.");
         }
-        const userPublicKey = addressObj.address;
+        const userPublicKey = accessResult.address;
         appendLog(`[client-zk] connected to Freighter: ${userPublicKey.slice(0, 8)}...${userPublicKey.slice(-8)}`);
         
         // Step 3: Check Nullifier
@@ -195,7 +196,7 @@ export function SimulationDashboard() {
         appendLog("[client-zk] calculating nullifier hash...");
         
         const secretFieldVal = Array.from(enteredSecret).reduce((acc, char) => acc + char.charCodeAt(0), 0);
-        const BN254_MODULUS = 21888242871839275222246405745257275088548364400416034343698204186575808495617n;
+        const BN254_MODULUS = 2188824287183927522224640575257275088548364400416034343698204186575808495617n;
         const derivedNullifierVal = (BigInt(secretFieldVal) * 2026n) % BN254_MODULUS;
         const derivedNullifier = "0x" + derivedNullifierVal.toString(16).padStart(64, "0");
         setActiveNullifier(derivedNullifier);
