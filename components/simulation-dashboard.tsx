@@ -436,7 +436,15 @@ export function SimulationDashboard() {
 
       } catch (err: any) {
         console.error(err);
-        const errMessage = err.message || "Failed to submit transaction to Stellar Testnet";
+        let errMessage = err.message || "Failed to submit transaction to Stellar Testnet";
+        if (err.response && err.response.data) {
+          const data = err.response.data;
+          if (data.extras && data.extras.result_codes) {
+            errMessage += ` (${JSON.stringify(data.extras.result_codes)})`;
+          } else if (data.detail) {
+            errMessage += ` - ${data.detail}`;
+          }
+        }
         setClaimError(errMessage);
         setClaimingState("error");
         appendLog(`[stellar-tx] [error] transaction failed: ${errMessage}`);
