@@ -107,6 +107,87 @@ export function SimulationDashboard() {
     }
   }, [consoleLogs])
 
+  // Synchronize stats from Stellar Testnet contract
+  useEffect(() => {
+    const fetchOnChainStats = async () => {
+      if (networkMode !== "testnet") return
+      try {
+        const StellarSdk = await import("@stellar/stellar-sdk")
+        const rpcServer = new StellarSdk.rpc.Server(process.env.NEXT_PUBLIC_STELLAR_RPC_URL || "https://soroban-testnet.stellar.org")
+        const contractObj = new StellarSdk.Contract(testnetContractId)
+        const dummyAccount = new StellarSdk.Account("GCIIMDFLNO2B2LSNJGR2FDT5QAR3VAUJB3G22EK77FGPTG4XPDRTICHL", "0")
+
+        // 1. Get claim count
+        let tx = new StellarSdk.TransactionBuilder(dummyAccount, {
+          fee: "100000",
+          networkPassphrase: "Test SDF Network ; September 2015"
+        })
+        .addOperation(contractObj.call("get_claim_count"))
+        .setTimeout(30)
+        .build()
+
+        let sim = await rpcServer.simulateTransaction(tx)
+        if (sim.result && sim.result.retval) {
+          const val = StellarSdk.scValToNative(sim.result.retval)
+          setClaimsCount(Number(val))
+        }
+
+        // 2. Get total disbursed
+        tx = new StellarSdk.TransactionBuilder(dummyAccount, {
+          fee: "100000",
+          networkPassphrase: "Test SDF Network ; September 2015"
+        })
+        .addOperation(contractObj.call("get_total_disbursed"))
+        .setTimeout(30)
+        .build()
+
+        sim = await rpcServer.simulateTransaction(tx)
+        if (sim.result && sim.result.retval) {
+          const rawDisbursed = StellarSdk.scValToNative(sim.result.retval)
+          setTotalDisbursed(Math.floor(Number(rawDisbursed) / 10000000))
+        }
+
+        // 3. Get failed attempts
+        tx = new StellarSdk.TransactionBuilder(dummyAccount, {
+          fee: "100000",
+          networkPassphrase: "Test SDF Network ; September 2015"
+        })
+        .addOperation(contractObj.call("get_failed_attempts"))
+        .setTimeout(30)
+        .build()
+
+        sim = await rpcServer.simulateTransaction(tx)
+        if (sim.result && sim.result.retval) {
+          const val = StellarSdk.scValToNative(sim.result.retval)
+          setDoubleClaimsBlocked(Number(val))
+        }
+
+        // 4. Get active root
+        tx = new StellarSdk.TransactionBuilder(dummyAccount, {
+          fee: "100000",
+          networkPassphrase: "Test SDF Network ; September 2015"
+        })
+        .addOperation(contractObj.call("get_merkle_root"))
+        .setTimeout(30)
+        .build()
+
+        sim = await rpcServer.simulateTransaction(tx)
+        if (sim.result && sim.result.retval) {
+          const rootBytes = StellarSdk.scValToNative(sim.result.retval)
+          if (rootBytes instanceof Uint8Array || Buffer.isBuffer(rootBytes)) {
+            setMerkleRoot("0x" + Buffer.from(rootBytes).toString("hex"))
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch on-chain stats:", err)
+      }
+    }
+
+    fetchOnChainStats()
+    const interval = setInterval(fetchOnChainStats, 10000)
+    return () => clearInterval(interval)
+  }, [networkMode, testnetContractId])
+
   const appendLog = (log: string) => {
     setConsoleLogs((prev) => [...prev, log])
   }
@@ -254,6 +335,32 @@ export function SimulationDashboard() {
 
         const rootBytes = hexToBytes(finalRoot);
         const nullifierBytes = hexToBytes(finalNullifier);
+
+        // Pre-flight check: Verify if the nullifier is already spent on-chain
+        appendLog("[client-zk] checking nullifier spent status on-chain...");
+        const checkNullifierTx = new StellarSdk.TransactionBuilder(accountDetail, {
+          fee: "100000",
+          networkPassphrase: "Test SDF Network ; September 2015"
+        })
+        .addOperation(
+          StellarSdk.Operation.invokeContractFunction({
+            contract: testnetContractId,
+            function: "is_nullifier_spent",
+            args: [
+              StellarSdk.xdr.ScVal.scvBytes(nullifierBytes)
+            ]
+          })
+        )
+        .setTimeout(30)
+        .build();
+
+        const checkSim = await rpcServer.simulateTransaction(checkNullifierTx);
+        if (checkSim.result && checkSim.result.retval) {
+          const isSpent = StellarSdk.scValToNative(checkSim.result.retval);
+          if (isSpent) {
+            throw new Error("Double-claim blocked: This secret key has already been claimed on-chain.");
+          }
+        }
 
         // Build Soroban contract call using standard invokeContractFunction
         let transaction = new StellarSdk.TransactionBuilder(accountDetail, {
