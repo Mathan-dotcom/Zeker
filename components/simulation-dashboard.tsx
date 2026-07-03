@@ -175,15 +175,16 @@ export function SimulationDashboard() {
         // Step 1: Detect wallet
         setClaimingState("deriving_hash");
         appendLog("[client-zk] checking Freighter wallet installation...");
-        const isFreighterConnected = await Freighter.isConnected();
-        if (!isFreighterConnected) {
+        const connectionObj = await Freighter.isConnected();
+        if (!connectionObj || !connectionObj.isConnected) {
           throw new Error("Freighter wallet extension not detected in browser. Please install the Freighter extension.");
         }
         
         // Step 2: Fetch public key
         setClaimingState("retrieving_merkle_proof");
         appendLog("[client-zk] requesting Freighter public account address...");
-        const userPublicKey = await Freighter.getPublicKey();
+        const addressObj = await Freighter.getAddress();
+        const userPublicKey = addressObj.address;
         if (!userPublicKey) {
           throw new Error("Could not retrieve public key. Please unlock your Freighter wallet.");
         }
